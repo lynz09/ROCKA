@@ -86,8 +86,7 @@ SBD_distance <- function(dt,df){
   #input:standardized sequence and its length
   ## dt:a standardized sequence
   ## df:a standardized sequence
- 
-  #output: best slides s,SBD (ranges from 0 to 2)
+  # output: best slides s,SBD (ranges from 0 to 2)
   n <- length(dt);m <- length(df)  #n:the length of dt, m:the length of df
   RR <- sapply((-n+1):(n-1),function(x){
     if(x >= 0){
@@ -110,7 +109,6 @@ SBD_distance <- function(dt,df){
    return(c(s=max_s,SBD=SBD))
 }
 
-# Caculate SBD distance matrix 
 # Caculate SBD distance matrix 
 SBD_dist <- function(dt,n){
   # Input:dt,n(the number of time series)
