@@ -217,7 +217,7 @@ ROCKA_kdist <- function(dt,w=2,minPts=4){
   #b <- Sys.time()
   id <- colnames(base_mat)
   baseline_kdis <- k_distance(tt,minPts,id)
-  return(baseline_kdis)
+  return(list(baseline_kdis=baseline_kdis, tt=tt))
 }
 
 ROCKA_train <- function(dt,minPts=4,max_radius=0.2,len_thresh=10,slope_thresh=0.01,slope_diff_thresh=0.001){
@@ -230,7 +230,7 @@ ROCKA_train <- function(dt,minPts=4,max_radius=0.2,len_thresh=10,slope_thresh=0.
   ## slope_diff_thresh:small value indicates a flat part 
   # Output:gives out an object of class 'dbscan' which is a LIST with components
   
-  input_kdis <- dt %>% arrange(desc(SBD)) %>%  
+  input_kdis <- dt$baseline_kdis %>% arrange(desc(SBD)) %>%  
     mutate(idx=seq(1,nrow(dt),1))  # input k_dis to estimate the key parameter:density radius
   
   # compute initial candidated point r
@@ -252,11 +252,11 @@ ROCKA_train <- function(dt,minPts=4,max_radius=0.2,len_thresh=10,slope_thresh=0.
       post_candidates <- rbind(post_candidates,jj)
     }
    
-   r_candidates <- c(as.numeric(pre_candidates[,1]),as.numeric(post_candidates[,1])) 
+   r_candidates <- c(as.numeric(pre_candidates[,1]),as.numeric(post_candidates[,1]),as.numeric(r_ini)) 
    r_set <- input_kdis %>% filter(as.numeric(idx) %in% r_candidates) 
    r_best <- r_set$SBD[which.max(r_set$SBD)]
    
-   tt1 <- as.dist(tt) # dist object (n-1)*(n-1)
+   tt1 <- as.dist(dt$tt) # dist object (n-1)*(n-1)
    set.seed(123)
    res <- fpc::dbscan(tt1,eps = r_best, MinPts = minPts,method='dist')
    centroid_dat <- data.frame(id=id,cluster=res$cluster,SBD_sq=rowSums(tt^2)) %>% 
