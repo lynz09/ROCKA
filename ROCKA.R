@@ -14,7 +14,7 @@ setClass(Class = "Extract_baseline",
 
 setClass(Class = "ROCKA_cluster",
          representation(
-           cluster_res = "numeric",
+           cluster_res = "data.frame",
            centroid_dat = "data.frame"
          )
 )
@@ -86,8 +86,18 @@ SBD_distance <- function(dt,df){
   #input:standardized sequence and its length
   ## dt:a standardized sequence
   ## df:a standardized sequence
-  # output: best slides s,SBD (ranges from 0 to 2)
+ 
+  #output: best slides s,SBD (ranges from 0 to 2)
   n <- length(dt);m <- length(df)  #n:the length of dt, m:the length of df
+  # x:static
+  # y:slice over x
+  # RR <- sapply((-m+1):(m-1),function(x){
+  #   if(x >= 0){
+  #     t <- crossprod(dt[(x+1):n],df[1:(m-x)])
+  #   } else {
+  #     t <- crossprod(dt[1:(n+x)],df[(1-x):m])
+  #   }
+  # })
   RR <- sapply((-n+1):(n-1),function(x){
     if(x >= 0){
       if(m >= n){
@@ -104,17 +114,26 @@ SBD_distance <- function(dt,df){
     }
   })
   NCC <- rbind((-n+1):(n-1),RR/sqrt(crossprod(dt)*crossprod(df)))
-  max_s <- NCC[1, which.max(NCC[2,])];NCC_s <- NCC[2, which.max(NCC[2,])]
-  SBD <- 1-NCC_s  # ranges from 0 to 2
+   #CC <- rbind(RR[1, ],colSums(RR[2:(m+1), ]))  # inner-product
+   #NCC <- rbind(CC[1, ],CC[2, ]/sqrt(crossprod(x)*crossprod(y)))
+   max_s <- NCC[1, which.max(NCC[2,])];NCC_s <- NCC[2, which.max(NCC[2,])]
+   SBD <- 1-NCC_s  # ranges from 0 to 2
    return(c(s=max_s,SBD=SBD))
 }
 
+# Caculate SBD distance matrix 
 # Caculate SBD distance matrix 
 SBD_dist <- function(dt,n){
   # Input:dt,n(the number of time series)
   # Output: SBD distance matrix 
   res_mat <- matrix(NA,n,n) 
- 
+  # SBD_mat <- sapply(1:n,function(x){
+  #   i_mat <- dt[,x]
+  #   j_mat <- apply(dt[,x:n],2,function(y){
+  #     SBD_distance(i_mat,y)[2]
+  #   })
+  #   res_mat[x:n,x] <- j_mat
+  # })
   SBD_mat <- sapply(1:n,function(x){
     i_mat <- dt[,x]
     j_mat <- sapply(x:n,function(y){
@@ -146,7 +165,14 @@ k_distance <- function(mat,minPts,id){
     stop("Data do not have enough points.")
   }
   k_matrix <- as.matrix(mat) 
- 
+  # k_SBD <- sapply(1:ncol(k_matrix),function(x){
+  #   i_dt <- k_matrix[, x]
+  #   i_SBD <- apply(k_matrix[, -x],2,function(y){
+  #     SBD_distance(i_dt,y)[2]
+  #   })
+  #   i_max <- max(sort(i_SBD)[1:minPts])
+  #   #return(c(id=colnames(i_dt),SBD=i_max))
+  # })
   k_SBD <- apply(k_matrix,2,function(x){
     i_max <- max(sort(x)[2:minPts])
     return(i_max)
@@ -215,7 +241,7 @@ ROCKA_kdist <- function(dt,w=2,minPts=4){
   #b <- Sys.time()
   id <- colnames(base_mat)
   baseline_kdis <- k_distance(tt,minPts,id)
-  return(list(baseline_kdis=baseline_kdis, tt=tt))
+  return(list(baseline_kdis=baseline_kdis,id=id, tt=tt))
 }
 
 ROCKA_train <- function(dt,minPts=4,max_radius=0.2,len_thresh=10,slope_thresh=0.01,slope_diff_thresh=0.001){
@@ -257,10 +283,10 @@ ROCKA_train <- function(dt,minPts=4,max_radius=0.2,len_thresh=10,slope_thresh=0.
    tt1 <- as.dist(dt$tt) # dist object (n-1)*(n-1)
    set.seed(123)
    res <- fpc::dbscan(tt1,eps = r_best, MinPts = minPts,method='dist')
-   centroid_dat <- data.frame(id=id,cluster=res$cluster,SBD_sq=rowSums(tt^2)) %>% 
+   centroid_dat <- data.frame(id=dt$id,cluster=res$cluster,SBD_sq=rowSums(tt^2)) %>% 
      group_by(cluster) %>% filter(row_number(SBD_sq)==1) %>% as.data.frame()
    return( new("ROCKA_cluster", 
-               cluster_res = res$cluster,
+               cluster_res = data.frame(id=dt$id,cluster=res$cluster),
                centroid_dat = centroid_dat))
    
   }
